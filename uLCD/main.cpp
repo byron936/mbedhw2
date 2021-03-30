@@ -4,57 +4,94 @@
 
 #include "uLCD_4DGL.h"
 
+using namespace std::chrono;
+
 DigitalIn but1(D13);
 DigitalIn but2(D12);
 DigitalIn but3(D11);
 
 AnalogOut aout(D7);
 
+AnalogIn ain(A0);
+
 uLCD_4DGL uLCD(D1, D0, D2); // serial tx, serial rx, reset pin;
 
 EventQueue queue(32 * EVENTS_EVENT_SIZE);
 
+Timer ti;
 Thread t;
+Thread t2;
 
+float ADCdata[1000];
 int n = 0;
 int flag = 1;
+
+void display_s()
+{
+    if (n == 0)
+    {
+        uLCD.cls();
+        uLCD.textbackground_color(RED);
+        uLCD.printf("\n50Hz\n");
+        uLCD.textbackground_color(0xFFFFFF);
+        uLCD.printf("\n1050Hz\n");
+        uLCD.printf("\n1550Hz\n");
+    }
+    else if (n == 1)
+    {
+        uLCD.cls();
+        uLCD.printf("\n550Hz\n");
+        uLCD.textbackground_color(RED);
+        uLCD.printf("\n1050Hz\n");
+        uLCD.textbackground_color(0xFFFFFF);
+        uLCD.printf("\n1550Hz\n");
+    }
+    else if (n == 2)
+    {
+        uLCD.cls();
+        uLCD.printf("\n550Hz\n");
+        uLCD.printf("\n1050Hz\n");
+        uLCD.textbackground_color(RED);
+        uLCD.printf("\n1550Hz\n");
+        uLCD.textbackground_color(0xFFFFFF);
+    }
+}
 
 void display()
 {
     if (n == 0)
     {
         uLCD.cls();
-        uLCD.textbackground_color(RED);
-        uLCD.printf("\n950Hz\n");
+        uLCD.textbackground_color(GREEN);
+        uLCD.printf("\n550Hz\n");
         uLCD.textbackground_color(0xFFFFFF);
         uLCD.printf("\n1050Hz\n");
-        uLCD.printf("\n1150Hz\n");
+        uLCD.printf("\n1550Hz\n");
     }
     else if (n == 1)
     {
         uLCD.cls();
-        uLCD.printf("\n950Hz\n");
-        uLCD.textbackground_color(RED);
+        uLCD.printf("\n550Hz\n");
+        uLCD.textbackground_color(GREEN);
         uLCD.printf("\n1050Hz\n");
         uLCD.textbackground_color(0xFFFFFF);
-        uLCD.printf("\n1150Hz\n");
+        uLCD.printf("\n1550Hz\n");
     }
     else if (n == 2)
     {
         uLCD.cls();
-        uLCD.printf("\n950Hz\n");
+        uLCD.printf("\n550Hz\n");
         uLCD.printf("\n1050Hz\n");
-        uLCD.textbackground_color(RED);
-        uLCD.printf("\n1150Hz\n");
+        uLCD.textbackground_color(GREEN);
+        uLCD.printf("\n1550Hz\n");
         uLCD.textbackground_color(0xFFFFFF);
     }
 }
-
 void pl()
 {
     n--;
     n = (n + 3) % 3;
-    printf("up\n");
+    //printf("up\n");
     queue.call(display);
 }
 
@@ -62,14 +99,53 @@ void mi()
 {
     n++;
     n = (n + 3) % 3;
-    printf("down\n");
+    //printf("down\n");
     queue.call(display);
 }
 void sel()
 {
     flag = 0;
-    printf("select\n");
-    queue.call(display);
+    //printf("select\n");
+    queue.call(display_s);
+}
+void generate_wave()
+{
+    if (n == 0)
+        while (1)
+        {
+            for (int i = 0; i < 48; i += 1)
+            {
+                aout = float(i) / 48.000;
+            }
+            for (int i = 192; i > 0; i -= 1)
+            {
+                aout = float(i) / 192.000;
+            }
+        }
+    else if (n == 1)
+        while (1)
+        {
+            for (int i = 0; i < 25; i += 1)
+            {
+                aout = float(i) / 25.000;
+            }
+            for (int i = 100; i > 0; i -= 1)
+            {
+                aout = float(i) / 100.000;
+            }
+        }
+    else if (n == 2)
+        while (1)
+        {
+            for (int i = 0; i < 17; i += 1)
+            {
+                aout = float(i) / 17.000;
+            }
+            for (int i = 68; i > 0; i -= 1)
+            {
+                aout = float(i) / 68.000;
+            }
+        }
 }
 
 int main()
@@ -90,26 +166,21 @@ int main()
             sel();
         ThisThread::sleep_for(250ms);
     }
-    int freq = 1050;
-    if (n == 0)
-        freq = 950;
-    else if (n == 1)
-        freq = 1050;
-    else if (n == 2)
-        freq = 1150;
-    while (1)
+
+    t2.start(generate_wave);
+    //ti.start();
+    for (int i = 0; i < 1000; i++)
     {
-        for (float i = 0.0f; i < 1.0f; i += 0.08f)
-        {
-            aout = i;
-            //printf("aout = %f volts\n", aout.read() * 3.3f);
-            //ThisThread::sleep_for(20ms);
-        }
-        for (float i = 1.0f; i > 0; i -= 0.02f)
-        {
-            aout = i;
-            //printf("aout = %f volts\n", aout.read() * 3.3f);
-            //ThisThread::sleep_for(80ms);
-        }
+        ADCdata[i] = ain;
+        ThisThread::sleep_for(1ms);
     }
+    //ti.stop();
+    //auto s = chrono::duration_cast<chrono::seconds>(ti.elapsed_time()).count();
+    //printf("Timer time: %llu s\n", s);
+    //time:6s
+    for (int i = 0; i < 1000; i++)
+    {
+        printf("%f\r\n", ADCdata[i]);
+    }
+    ThisThread::sleep_for(10000ms);
 }
